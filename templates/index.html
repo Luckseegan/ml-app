@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Basic ML App</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🤖 Basic Machine Learning App</h1>
+            <p>Simple Linear Regression Demo</p>
+        </header>
+
+        <div class="status-card">
+            <h3>Model Status</h3>
+            <div class="status {{ 'trained' if model_trained else 'not-trained' }}">
+                {{ 'Trained ✅' if model_trained else 'Not Trained ❌' }}
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>🚀 Train Model</h3>
+            <p>Train a linear regression model on sample data (y = 2x + 1 + noise)</p>
+            <button onclick="trainModel()" id="train-btn">Train Model</button>
+            <div id="training-result"></div>
+        </div>
+
+        <div class="card">
+            <h3>🔮 Make Prediction</h3>
+            <div class="input-group">
+                <label for="x-value">Enter X value:</label>
+                <input type="number" id="x-value" step="any" placeholder="e.g., 5.5" value="5">
+                <button onclick="makePrediction()">Predict Y</button>
+            </div>
+            <div id="prediction-result"></div>
+        </div>
+
+        <div class="card">
+            <h3>📊 Training History</h3>
+            <div id="history">
+                {% if history %}
+                    {% for train in history %}
+                    <div class="history-item">
+                        <strong>Training #{{ loop.index }}</strong><br>
+                        Equation: {{ train.equation }}<br>
+                        Train Score: {{ train.train_score }} | Test Score: {{ train.test_score }}
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p>No training history yet.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>🔧 API Endpoints</h3>
+            <div class="api-endpoints">
+                <div class="endpoint">
+                    <strong>POST /api/train</strong> - Train the model
+                </div>
+                <div class="endpoint">
+                    <strong>POST /api/predict</strong> - Make prediction (JSON: {"x_value": number})
+                </div>
+                <div class="endpoint">
+                    <strong>GET /model-info</strong> - Get model information
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function trainModel() {
+            const btn = document.getElementById('train-btn');
+            const resultDiv = document.getElementById('training-result');
+            
+            btn.disabled = true;
+            btn.textContent = 'Training...';
+            resultDiv.innerHTML = '<div class="loading">Training model...</div>';
+
+            try {
+                const response = await fetch('/train', { method: 'POST' });
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <strong>✅ Training Successful!</strong><br>
+                            Equation: ${data.results.equation}<br>
+                            Train Score: ${data.results.train_score} | Test Score: ${data.results.test_score}
+                        </div>
+                    `;
+                    // Reload page to update status
+                    setTimeout(() => location.reload(), 2000);
+                } else {
+                    resultDiv.innerHTML = `<div class="error">Error: ${data.message}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">Network error: ${error}</div>`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Train Model';
+            }
+        }
+
+        async function makePrediction() {
+            const xValue = document.getElementById('x-value').value;
+            const resultDiv = document.getElementById('prediction-result');
+
+            if (!xValue) {
+                resultDiv.innerHTML = '<div class="error">Please enter a value for X</div>';
+                return;
+            }
+
+            resultDiv.innerHTML = '<div class="loading">Making prediction...</div>';
+
+            try {
+                const formData = new FormData();
+                formData.append('x_value', xValue);
+
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <strong>🎯 Prediction Result</strong><br>
+                            For X = ${data.prediction.input}<br>
+                            Predicted Y = ${data.prediction.prediction}<br>
+                            Using: ${data.prediction.equation}
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">Error: ${data.message}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">Network error: ${error}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>
